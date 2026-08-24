@@ -53,7 +53,7 @@ PLEX_SECRETS=$(infisical export \
   --domain="${INFISICAL_API_URL}" \
   --projectId="${MEDIA_ACCOUNTS_PROJECT_ID}" \
   --env=prod \
-  --path=/plex/ \
+  --path=/plex/claim/ \
   --format=dotenv-export)
 eval "$PLEX_SECRETS"
 
