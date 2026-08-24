@@ -45,7 +45,7 @@ PROTONVPN_SECRETS=$(infisical export \
   --domain="${INFISICAL_API_URL}" \
   --projectId="${CONNECTIVITY_PROJECT_ID}" \
   --env=prod \
-  --path=/protonvpn/ \
+  --path=/protonvpn/media-glueton/ \
   --format=dotenv-export)
 eval "$PROTONVPN_SECRETS"
 
