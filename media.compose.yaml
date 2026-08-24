@@ -1,0 +1,259 @@
+networks:
+  default:
+    name: media-net
+    external: true
+
+services:
+
+  gluetun:
+    image: qmcgaw/gluetun:latest
+    container_name: gluetun
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - VPN_SERVICE_PROVIDER=${VPN_SERVICE_PROVIDER}
+      - VPN_TYPE=${VPN_TYPE}
+      - WIREGUARD_PRIVATE_KEY=${WIREGUARD_PRIVATE_KEY}
+      - WIREGUARD_ADDRESSES=${WIREGUARD_ADDRESSES}
+      - SERVER_COUNTRIES=${SERVER_COUNTRIES}
+      - VPN_PORT_FORWARDING=on
+      - VPN_PORT_FORWARDING_UP_COMMAND=/bin/sh -c 'wget -O- -nv --retry-connrefused --post-data "json={\"listen_port\":{{PORT}},\"current_network_interface\":\"{{VPN_INTERFACE}}\",\"random_port\":false,\"upnp\":false}" http://127.0.0.1:8080/api/v2/app/setPreferences'
+      - TZ=${TZ:-America/New_York}
+    ports:
+      - "8080:8080"
+      - "6881:6881/tcp"
+      - "6881:6881/udp"
+    restart: unless-stopped
+
+  mam-seedboxapi:
+    image: myanonamouse/seedboxapi:latest
+    container_name: mam-seedboxapi
+    environment:
+      - mam_id=${MAM_ID}
+      - interval=60
+    volumes:
+      - ${DATA_ROOT}/mam-seedboxapi/config:/config
+    network_mode: "service:gluetun"
+    depends_on:
+      - gluetun
+    restart: unless-stopped
+
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    network_mode: "service:gluetun"
+    depends_on:
+      - gluetun
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ:-America/New_York}
+      - WEBUI_PORT=8080
+    volumes:
+      - type: bind
+        source: ${DATA_ROOT}/qbittorrent/config
+        target: /config
+      - type: bind
+        source: ${DATA_ROOT}/qbittorrent/watch
+        target: /watch
+      - type: bind
+        source: ${MEDIA_ROOT}/downloads
+        target: /downloads
+    restart: unless-stopped
+
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ:-America/New_York}
+    volumes:
+      - type: bind
+        source: ${DATA_ROOT}/prowlarr/config
+        target: /config
+    ports:
+      - "9696:9696"
+    restart: unless-stopped
+
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    environment:
+      - TZ=${TZ:-America/New_York}
+    ports:
+      - "8191:8191"
+    restart: unless-stopped
+
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ:-America/New_York}
+    volumes:
+      - type: bind
+        source: ${DATA_ROOT}/sonarr/config
+        target: /config
+      - type: bind
+        source: ${MEDIA_ROOT}/tv
+        target: /tv
+      - type: bind
+        source: ${MEDIA_ROOT}/downloads
+        target: /downloads
+    ports:
+      - "8989:8989"
+    restart: unless-stopped
+
+  recyclarr:
+    image: ghcr.io/recyclarr/recyclarr:latest
+    container_name: recyclarr
+    user: "${PUID}:${PGID}"
+    environment:
+      - TZ=${TZ:-America/New_York}
+    volumes:
+      - type: bind
+        source: ${DATA_ROOT}/recyclarr/config
+        target: /config
+    restart: unless-stopped
+
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ:-America/New_York}
+    volumes:
+      - type: bind
+        source: ${DATA_ROOT}/radarr/config
+        target: /config
+      - type: bind
+        source: ${MEDIA_ROOT}/movies
+        target: /movies
+      - type: bind
+        source: ${MEDIA_ROOT}/downloads
+        target: /downloads
+    ports:
+      - "7878:7878"
+    restart: unless-stopped
+
+  plex:
+    image: plexinc/pms-docker:latest
+    container_name: plex
+    environment:
+      - TZ=${TZ:-America/New_York}
+      - PLEX_UID=${PUID}
+      - PLEX_GID=${PGID}
+      - PLEX_CLAIM=${PLEX_CLAIM}
+    volumes:
+      - type: bind
+        source: ${DATA_ROOT}/plex/config
+        target: /config
+      - type: bind
+        source: ${MEDIA_ROOT}/movies
+        target: /media/movies
+        read_only: true
+      - type: bind
+        source: ${MEDIA_ROOT}/tv
+        target: /media/tv
+        read_only: true
+      - type: bind
+        source: ${DATA_ROOT}/plex/transcode
+        target: /transcode
+    ports:
+      - "32400:32400"
+    restart: unless-stopped
+
+  qui:
+    image: ghcr.io/autobrr/qui:latest
+    container_name: qui
+    volumes:
+      - type: bind
+        source: ${DATA_ROOT}/qui/config
+        target: /config
+    ports:
+      - "7476:7476"
+    restart: unless-stopped
+
+  autobrr:
+    image: ghcr.io/autobrr/autobrr:latest
+    container_name: autobrr
+    volumes:
+      - type: bind
+        source: ${DATA_ROOT}/autobrr/config
+        target: /config
+    ports:
+      - "7474:7474"
+    restart: unless-stopped
+
+  maintainerr:
+    image: ghcr.io/jorenn92/maintainerr:latest
+    container_name: maintainerr
+    volumes:
+      - type: bind
+        source: ${DATA_ROOT}/maintainerr/config
+        target: /opt/data
+    ports:
+      - "6246:6246"
+    environment:
+      - TZ=${TZ:-America/New_York}
+    restart: unless-stopped
+
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: jellyfin
+    environment:
+      - TZ=${TZ:-America/New_York}
+    volumes:
+      - type: bind
+        source: ${DATA_ROOT}/jellyfin/config
+        target: /config
+      - type: bind
+        source: ${DATA_ROOT}/jellyfin/cache
+        target: /cache
+      - type: bind
+        source: ${MEDIA_ROOT}/movies
+        target: /media/movies
+        read_only: true
+      - type: bind
+        source: ${MEDIA_ROOT}/tv
+        target: /media/tv
+        read_only: true
+    ports:
+      - "8096:8096"
+    restart: unless-stopped
+
+  seerr:
+    image: ghcr.io/seerr-team/seerr:latest
+    container_name: seerr
+    init: true
+    environment:
+      - TZ=${TZ:-America/New_York}
+      - PORT=5055
+    volumes:
+      - type: bind
+        source: ${DATA_ROOT}/seerr/config
+        target: /app/config
+    ports:
+      - "5055:5055"
+    restart: unless-stopped
+
+  unpackerr:
+    image: golift/unpackerr:latest
+    container_name: unpackerr
+    user: "${PUID}:${PGID}"
+    environment:
+      - TZ=${TZ:-America/New_York}
+      - UN_SONARR_0_URL=http://sonarr:8989
+      - UN_SONARR_0_API_KEY=${SONARR_API_KEY}
+      - UN_RADARR_0_URL=http://radarr:7878
+      - UN_RADARR_0_API_KEY=${RADARR_API_KEY}
+    volumes:
+      - type: bind
+        source: ${MEDIA_ROOT}/downloads
+        target: /downloads
+    restart: unless-stopped
