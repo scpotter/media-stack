@@ -242,6 +242,15 @@ services:
       - "5055:5055"
     restart: unless-stopped
 
+  xtream2m3u:
+    image: ghcr.io/ovosimpatico/xtream2m3u:latest
+    container_name: xtream2m3u
+    environment:
+      - FLASK_ENV=production
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+
   threadfin:
     image: fyb3roptik/threadfin:latest
     container_name: threadfin
