@@ -242,6 +242,21 @@ services:
       - "5055:5055"
     restart: unless-stopped
 
+  threadfin:
+    image: fyb3roptik/threadfin:latest
+    container_name: threadfin
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ:-America/New_York}
+    volumes:
+      - type: bind
+        source: ${DATA_ROOT}/threadfin/config
+        target: /home/threadfin/conf
+    ports:
+      - "34400:34400"
+    restart: unless-stopped
+
   unpackerr:
     image: golift/unpackerr:latest
     container_name: unpackerr
