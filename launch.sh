@@ -99,4 +99,10 @@ cd "${SCRIPT_DIR}"
 # Idempotent (inspect-or-create) — safe to run on every launch, closes the
 # "two manual commands" gap for a from-scratch redeploy.
 ./network.sh
-exec docker compose -f media.compose.yaml up -d
+# --remove-orphans: without it, deleting a service from this file never
+# stops its already-running container — `up -d` only manages services
+# still present. Threadfin sat running for 6+ weeks after its service
+# block was removed (2026-09-13, commit 3017ccf) because of this; this
+# flag makes "removed from compose" and "removed from hosting" the same
+# fact going forward.
+exec docker compose -f media.compose.yaml up -d --remove-orphans
